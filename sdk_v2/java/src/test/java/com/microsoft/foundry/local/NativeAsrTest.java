@@ -18,7 +18,9 @@ class NativeAsrTest {
         String runtime = setting("foundry.test.runtime", "FOUNDRY_LOCAL_NATIVE_BIN_DIR");
         String cache = setting("foundry.test.cache", "FOUNDRY_TEST_DATA_DIR");
         String wav = setting("foundry.test.wav", "FOUNDRY_TEST_WAV");
-        assumeTrue(runtime != null && cache != null && wav != null, "Configure the native test runtime, cache, and WAV");
+        assumeTrue(
+                runtime != null && cache != null && wav != null,
+                "Configure the native test runtime, cache, and WAV");
         Configuration config = new Configuration("java-asr-test", Path.of(runtime), Path.of(cache), temporary);
         Model borrowed;
         AtomicInteger callbacks = new AtomicInteger();
@@ -49,7 +51,8 @@ class NativeAsrTest {
             for (int iteration = 0; iteration < 2; iteration++) {
                 try (AudioSession session = borrowed.createAudioSession()) {
                     assertThrows(IllegalStateException.class, borrowed::unload);
-                    try (Transcription run = session.streamPcm(PcmFormat.SPEECH, event -> callbacks.incrementAndGet())) {
+                    try (Transcription run = session.streamPcm(
+                            PcmFormat.SPEECH, event -> callbacks.incrementAndGet())) {
                         for (int offset = 0; offset < pcm.length; offset += 3200) {
                             run.writePcm(Arrays.copyOfRange(pcm, offset, Math.min(offset + 3200, pcm.length)));
                         }
@@ -64,7 +67,8 @@ class NativeAsrTest {
                     int count = callbacks.get();
                     Thread.sleep(100);
                     assertEquals(count, callbacks.get(), "No callback may outlive close");
-                    try (Transcription run = session.streamPcm(PcmFormat.SPEECH, event -> callbacks.incrementAndGet())) {
+                    try (Transcription run = session.streamPcm(
+                            PcmFormat.SPEECH, event -> callbacks.incrementAndGet())) {
                         run.writePcm(Arrays.copyOf(pcm, Math.min(3200, pcm.length)));
                         run.cancel();
                         assertTrue(run.await(Duration.ofSeconds(30)).cancelled());

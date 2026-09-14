@@ -36,7 +36,9 @@ public final class AudioSession implements AutoCloseable {
         synchronized (model.owner) {
             model.owner.checkOpen();
             if (handle == null) throw new IllegalStateException("Session is closed");
-            if (active != null && !active.isClosed()) throw new IllegalStateException("Close the previous transcription");
+            if (active != null && !active.isClosed()) {
+                throw new IllegalStateException("Close the previous transcription");
+            }
             active = new Transcription(this, wav, format, Objects.requireNonNull(listener));
             return active;
         }
