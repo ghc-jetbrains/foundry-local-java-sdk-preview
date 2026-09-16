@@ -20,10 +20,10 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -104,7 +104,7 @@ jobs:
           "@ >> $env:GITHUB_STEP_SUMMARY
 
       - name: Upload preview SDK JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: foundry-local-sdk-${{ steps.version.outputs.version }}
           path: ${{ steps.artifact.outputs.jar }}
