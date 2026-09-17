@@ -1,0 +1,231 @@
+# Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+name: Java native Dictation integration
+run-name: Java native integration (${{ inputs.source_ref || 'java/sdk-preview' }})
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/java-native-integration/**"
+      - ".github/workflows/java-native-integration.yml"
+  push:
+    branches:
+      - "integration-test/**"
+  schedule:
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Java SDK commit, tag, or branch to qualify
+        required: true
+        default: java/sdk-preview
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: java-native-integration
+  cancel-in-progress: false
+
+env:
+  SOURCE_REF: ${{ inputs.source_ref || 'java/sdk-preview' }}
+
+jobs:
+  validate:
+    name: Validate integration tools
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Run fast tool tests
+        shell: pwsh
+        run: |
+          python -m compileall -q .github/scripts/java-native-integration
+          if ($LASTEXITCODE -ne 0) { throw "Python compile check failed." }
+          python -m unittest discover .github/scripts/java-native-integration/tests
+          if ($LASTEXITCODE -ne 0) { throw "Integration tool tests failed." }
+          [void][scriptblock]::Create(
+            (Get-Content .github/scripts/java-native-integration/run.ps1 -Raw)
+          )
+          [void][scriptblock]::Create(
+            (Get-Content .github/scripts/java-native-integration/update-issue.ps1 -Raw)
+          )
+
+  integration:
+    name: integration-${{ matrix.id }}
+    if: github.event_name != 'pull_request'
+    needs:
+      - resolve-source
+      - validate
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - id: win-x64
+            runner: windows-2025
+            java_arch: x64
+          - id: win-arm64
+            runner: windows-11-arm
+            java_arch: arm64
+          - id: linux-x64
+            runner: ubuntu-24.04
+            java_arch: x64
+          - id: linux-arm64
+            runner: ubuntu-24.04-arm
+            java_arch: arm64
+          - id: osx-arm64
+            runner: macos-15
+            java_arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - name: Check out workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check out Java SDK source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.resolve-source.outputs.source_sha }}
+          path: source
+
+      - name: Set up Java 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          architecture: ${{ matrix.java_arch }}
+          cache: maven
+          cache-dependency-path: source/sdk_v2/java/pom.xml
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          architecture: ${{ matrix.java_arch }}
+          python-version: "3.12"
+
+      - name: Run real model integration
+        shell: pwsh
+        env:
+          ORT_TELEMETRY_DISABLED: "1"
+        run: |
+          .github/scripts/java-native-integration/run.ps1 `
+            -Target "${{ matrix.id }}" `
+            -SourceDirectory source `
+            -SourceRef "$env:SOURCE_REF" `
+            -ResultDirectory integration-results
+
+      - name: Upload target result
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: java-native-result-${{ matrix.id }}
+          path: integration-results/${{ matrix.id }}.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  resolve-source:
+    name: Resolve immutable Java source
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - name: Check out requested Java SDK source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ env.SOURCE_REF }}
+
+      - name: Record immutable source SHA
+        id: source
+        shell: pwsh
+        run: |
+          $sha = (& git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $sha -notmatch '^[0-9a-f]{40}$') {
+            throw "Could not resolve the requested Java SDK source."
+          }
+          "sha=$sha" >> $env:GITHUB_OUTPUT
+          "Resolved ``$env:SOURCE_REF`` to ``$sha``." >> $env:GITHUB_STEP_SUMMARY
+
+  report:
+    name: Report integration result
+    if: always() && github.event_name != 'pull_request'
+    needs:
+      - integration
+      - resolve-source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Download target results
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: java-native-result-*
+          path: integration-results
+          merge-multiple: true
+
+      - name: Build consolidated report
+        id: report
+        shell: pwsh
+        run: |
+          python .github/scripts/java-native-integration/report.py `
+            --results integration-results `
+            --output integration-report `
+            --run-url "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID" `
+            --source-ref "$env:SOURCE_REF" `
+            --expected-source-sha "${{ needs.resolve-source.outputs.source_sha }}" `
+            --github-output "$env:GITHUB_OUTPUT" `
+            --github-summary "$env:GITHUB_STEP_SUMMARY"
+          if ($LASTEXITCODE -ne 0) { throw "Could not build integration report." }
+
+      - name: Create, update, or close the tracking issue
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/java-native-integration/update-issue.ps1 `
+            -Repository "$env:GITHUB_REPOSITORY" `
+            -Failed "${{ steps.report.outputs.failed }}" `
+            -IssueBody integration-report/issue.md `
+            -CommentBody integration-report/comment.md
+
+      - name: Upload consolidated report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: java-native-integration-report
+          path: integration-report
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail incomplete qualification
+        if: steps.report.outputs.failed == 'true'
+        shell: pwsh
+        run: throw "At least one native target failed integration qualification."
