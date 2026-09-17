@@ -136,6 +136,7 @@ jobs:
           name: java-native-result-${{ matrix.id }}
           path: integration-results/${{ matrix.id }}.json
           if-no-files-found: warn
+          overwrite: true
           retention-days: 14
 
   resolve-source:
@@ -206,6 +207,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Could not build integration report." }
 
       - name: Create, update, or close the tracking issue
+        if: env.SOURCE_REF == 'java/sdk-preview'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -223,6 +225,7 @@ jobs:
           name: java-native-integration-report
           path: integration-report
           if-no-files-found: error
+          overwrite: true
           retention-days: 30
 
       - name: Fail incomplete qualification
