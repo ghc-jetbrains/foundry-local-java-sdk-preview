@@ -50,12 +50,26 @@ class PrepareRuntimeTest(unittest.TestCase):
             path = Path(directory) / "hashes.properties"
             for content in (
                 "linux-x64.file=short\n",
+                f"linux-x64.file={'g' * 64}\n",
+                "linux-x64.file\n",
                 f"linux-x64.file={'a' * 64}\nlinux-x64.file={'b' * 64}\n",
             ):
                 with self.subTest(content=content):
                     path.write_text(content, encoding="ascii")
                     with self.assertRaisesRegex(ValueError, "Invalid native hash entry"):
                         prepare_runtime.read_native_hashes(path)
+
+    def test_read_native_hashes_ignores_surrounding_blank_space(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "hashes.properties"
+            path.write_text(
+                f"  \n  # comment\nlinux-x64.file={'a' * 64}\n\n",
+                encoding="ascii",
+            )
+            self.assertEqual(
+                {"linux-x64.file": "a" * 64},
+                prepare_runtime.read_native_hashes(path),
+            )
 
     def test_prepare_extracts_an_aliased_native_file(self):
         payload = b"native bytes"

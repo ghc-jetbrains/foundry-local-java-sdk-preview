@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import tempfile
 import time
@@ -60,12 +61,21 @@ def download(package, destination):
 
 def read_native_hashes(path):
     hashes = {}
-    for line in path.read_text(encoding="ascii").splitlines():
+    for raw_line in path.read_text(encoding="ascii").splitlines():
+        line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
+        if "=" not in line:
+            raise ValueError(f"Invalid native hash entry: {raw_line}")
         key, value = line.split("=", 1)
-        if key in hashes or len(value) != 64:
-            raise ValueError(f"Invalid native hash entry: {key}")
+        if (
+            not key
+            or key != key.strip()
+            or value != value.strip()
+            or key in hashes
+            or re.fullmatch(r"[0-9a-f]{64}", value) is None
+        ):
+            raise ValueError(f"Invalid native hash entry: {raw_line}")
         hashes[key] = value
     return hashes
 
