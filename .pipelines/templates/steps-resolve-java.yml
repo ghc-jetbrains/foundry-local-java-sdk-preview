@@ -65,50 +65,103 @@ steps:
       } else {
         @('amd64', 'x86_64', 'x64')
       }
-      $resolvedHome = $null
-      $resolvedVersion = $null
-      $resolvedArchitecture = $null
 
-      foreach ($candidate in @($candidateHomes | Select-Object -Unique)) {
-        $javaName = if ($IsWindows) { 'java.exe' } else { 'java' }
-        $javacName = if ($IsWindows) { 'javac.exe' } else { 'javac' }
-        $java = [IO.Path]::Combine($candidate, 'bin', $javaName)
-        $javac = [IO.Path]::Combine($candidate, 'bin', $javacName)
-        if (-not (Test-Path $java -PathType Leaf -ErrorAction SilentlyContinue) -or
-          -not (Test-Path $javac -PathType Leaf -ErrorAction SilentlyContinue)) {
-          continue
+      function Find-Jdk {
+        foreach ($candidate in @($candidateHomes | Select-Object -Unique)) {
+          $javaName = if ($IsWindows) { 'java.exe' } else { 'java' }
+          $javacName = if ($IsWindows) { 'javac.exe' } else { 'javac' }
+          $java = [IO.Path]::Combine($candidate, 'bin', $javaName)
+          $javac = [IO.Path]::Combine($candidate, 'bin', $javacName)
+          if (-not (Test-Path $java -PathType Leaf -ErrorAction SilentlyContinue) -or
+            -not (Test-Path $javac -PathType Leaf -ErrorAction SilentlyContinue)) {
+            continue
+          }
+
+          $properties = @(& $java -XshowSettings:properties -version 2>&1 |
+            ForEach-Object { "$_" })
+          if ($LASTEXITCODE -ne 0) {
+            continue
+          }
+
+          $versionProperty = $properties |
+            Where-Object { $_ -match '^\s*java\.version\s*=' } |
+            Select-Object -First 1
+          $architectureProperty = $properties |
+            Where-Object { $_ -match '^\s*os\.arch\s*=' } |
+            Select-Object -First 1
+          if (-not $versionProperty -or -not $architectureProperty) {
+            continue
+          }
+
+          $version = (($versionProperty -split '=', 2)[1]).Trim()
+          $architecture = (($architectureProperty -split '=', 2)[1]).Trim().ToLowerInvariant()
+          if ($version -notmatch "^$requiredMajor(?:\.|$)" -or
+            $architecture -notin $acceptedArchitectures) {
+            continue
+          }
+
+          return [pscustomobject]@{
+            Home = (Resolve-Path $candidate).Path
+            Version = $version
+            Architecture = $architecture
+          }
         }
 
-        $properties = @(& $java -XshowSettings:properties -version 2>&1 |
-          ForEach-Object { "$_" })
-        if ($LASTEXITCODE -ne 0) {
-          continue
-        }
-
-        $versionProperty = $properties |
-          Where-Object { $_ -match '^\s*java\.version\s*=' } |
-          Select-Object -First 1
-        $architectureProperty = $properties |
-          Where-Object { $_ -match '^\s*os\.arch\s*=' } |
-          Select-Object -First 1
-        if (-not $versionProperty -or -not $architectureProperty) {
-          continue
-        }
-
-        $version = (($versionProperty -split '=', 2)[1]).Trim()
-        $architecture = (($architectureProperty -split '=', 2)[1]).Trim().ToLowerInvariant()
-        if ($version -notmatch "^$requiredMajor(?:\.|$)" -or
-          $architecture -notin $acceptedArchitectures) {
-          continue
-        }
-
-        $resolvedHome = (Resolve-Path $candidate).Path
-        $resolvedVersion = $version
-        $resolvedArchitecture = $architecture
-        break
+        return $null
       }
 
-      if (-not $resolvedHome) {
+      $resolved = Find-Jdk
+      if (-not $resolved -and $IsWindows -and $requiredArchitecture -eq 'arm64') {
+        $version = '17.0.20.1'
+        $tools = Join-Path '$(Agent.TempDirectory)' 'foundry-java-tools'
+        $archive = Join-Path $tools "microsoft-jdk-$version-windows-aarch64.zip"
+        $extractRoot = Join-Path $tools "microsoft-jdk-$version-windows-aarch64"
+
+        New-Item -ItemType Directory -Force -Path $tools | Out-Null
+        if (-not (Test-Path $archive -PathType Leaf)) {
+          $uri = "https://aka.ms/download-jdk/" +
+            "microsoft-jdk-$version-windows-aarch64.zip"
+          Invoke-WebRequest $uri -OutFile $archive
+        }
+
+        $expected = '6872e702181fe88773a80bc3684281c111091e29e7f190ac5af06b0315f8b849'
+        if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $expected) {
+          Remove-Item $archive -Force
+          throw 'Microsoft OpenJDK archive checksum mismatch.'
+        }
+
+        $possibleHomes = if (Test-Path $extractRoot -PathType Container) {
+          @((Get-Item $extractRoot)) + @(Get-ChildItem $extractRoot -Directory)
+        } else {
+          @()
+        }
+        $jdkHome = $possibleHomes |
+          Where-Object {
+            Test-Path ([IO.Path]::Combine($_.FullName, 'bin', 'java.exe')) -PathType Leaf
+          } |
+          Select-Object -First 1
+        if (-not $jdkHome) {
+          if (Test-Path $extractRoot) {
+            Remove-Item $extractRoot -Recurse -Force
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath $extractRoot
+          $possibleHomes = @((Get-Item $extractRoot)) +
+            @(Get-ChildItem $extractRoot -Directory)
+          $jdkHome = $possibleHomes |
+            Where-Object {
+              Test-Path ([IO.Path]::Combine($_.FullName, 'bin', 'java.exe')) -PathType Leaf
+            } |
+            Select-Object -First 1
+        }
+        if (-not $jdkHome) {
+          throw "Microsoft OpenJDK archive does not contain a JDK home: $archive"
+        }
+
+        Add-Candidate $jdkHome.FullName
+        $resolved = Find-Jdk
+      }
+
+      if (-not $resolved) {
         $inspected = if ($candidateHomes.Count -eq 0) {
           '<none>'
         } else {
@@ -118,6 +171,6 @@ steps:
           "Inspected: $inspected"
       }
 
-      Write-Host "Using JDK $resolvedVersion ($resolvedArchitecture): $resolvedHome"
-      Write-Host "##vso[task.setvariable variable=foundryJavaHome]$resolvedHome"
-      Write-Host "##vso[task.prependpath]$(Join-Path $resolvedHome 'bin')"
+      Write-Host "Using JDK $($resolved.Version) ($($resolved.Architecture)): $($resolved.Home)"
+      Write-Host "##vso[task.setvariable variable=foundryJavaHome]$($resolved.Home)"
+      Write-Host "##vso[task.prependpath]$(Join-Path $resolved.Home 'bin')"
