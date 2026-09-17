@@ -103,14 +103,14 @@ jobs:
           ref: ${{ needs.resolve-source.outputs.source_sha }}
           path: source
 
-      - name: Set up Java 17
+      - name: Set up Java 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           architecture: ${{ matrix.java_arch }}
           cache: maven
           cache-dependency-path: source/sdk_v2/java/pom.xml
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
