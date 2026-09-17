@@ -1,0 +1,123 @@
+# Resolve a pre-installed JDK by its actual version and architecture instead of
+# relying only on Azure agent JAVA_HOME_<version>_<architecture> capabilities.
+
+parameters:
+- name: jdkArchitecture
+  type: string
+  # x64 | arm64
+
+steps:
+- task: PowerShell@2
+  displayName: 'Resolve JDK 17 (${{ parameters.jdkArchitecture }})'
+  inputs:
+    targetType: inline
+    pwsh: true
+    script: |
+      $ErrorActionPreference = 'Stop'
+
+      $requiredMajor = 17
+      $requiredArchitecture = '${{ parameters.jdkArchitecture }}'
+      $candidateHomes = [Collections.Generic.List[string]]::new()
+
+      function Add-Candidate([string] $path) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+          $candidateHomes.Add($path.Trim().Trim('"'))
+        }
+      }
+
+      $registeredArchitectures = if ($requiredArchitecture -eq 'arm64') {
+        @('ARM64', 'AARCH64')
+      } else {
+        @('X64')
+      }
+      foreach ($architecture in $registeredArchitectures) {
+        Add-Candidate ([Environment]::GetEnvironmentVariable(
+          "JAVA_HOME_${requiredMajor}_$architecture"))
+      }
+      Add-Candidate $env:JAVA_HOME
+
+      if ($IsMacOS) {
+        $macHomes = @(& /usr/libexec/java_home -v $requiredMajor -a $requiredArchitecture 2>$null)
+        if ($LASTEXITCODE -eq 0) {
+          foreach ($home in $macHomes) {
+            Add-Candidate $home
+          }
+        }
+      }
+
+      $javaOnPath = Get-Command java -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+      if ($javaOnPath) {
+        $pathProperties = @(& $javaOnPath.Source -XshowSettings:properties -version 2>&1 |
+          ForEach-Object { "$_" })
+        if ($LASTEXITCODE -eq 0) {
+          $homeProperty = $pathProperties |
+            Where-Object { $_ -match '^\s*java\.home\s*=' } |
+            Select-Object -First 1
+          if ($homeProperty) {
+            Add-Candidate (($homeProperty -split '=', 2)[1])
+          }
+        }
+      }
+
+      $acceptedArchitectures = if ($requiredArchitecture -eq 'arm64') {
+        @('aarch64', 'arm64')
+      } else {
+        @('amd64', 'x86_64', 'x64')
+      }
+      $resolvedHome = $null
+      $resolvedVersion = $null
+      $resolvedArchitecture = $null
+
+      foreach ($candidate in @($candidateHomes | Select-Object -Unique)) {
+        $javaName = if ($IsWindows) { 'java.exe' } else { 'java' }
+        $javacName = if ($IsWindows) { 'javac.exe' } else { 'javac' }
+        $java = [IO.Path]::Combine($candidate, 'bin', $javaName)
+        $javac = [IO.Path]::Combine($candidate, 'bin', $javacName)
+        if (-not (Test-Path $java -PathType Leaf -ErrorAction SilentlyContinue) -or
+          -not (Test-Path $javac -PathType Leaf -ErrorAction SilentlyContinue)) {
+          continue
+        }
+
+        $properties = @(& $java -XshowSettings:properties -version 2>&1 |
+          ForEach-Object { "$_" })
+        if ($LASTEXITCODE -ne 0) {
+          continue
+        }
+
+        $versionProperty = $properties |
+          Where-Object { $_ -match '^\s*java\.version\s*=' } |
+          Select-Object -First 1
+        $architectureProperty = $properties |
+          Where-Object { $_ -match '^\s*os\.arch\s*=' } |
+          Select-Object -First 1
+        if (-not $versionProperty -or -not $architectureProperty) {
+          continue
+        }
+
+        $version = (($versionProperty -split '=', 2)[1]).Trim()
+        $architecture = (($architectureProperty -split '=', 2)[1]).Trim().ToLowerInvariant()
+        if ($version -notmatch "^$requiredMajor(?:\.|$)" -or
+          $architecture -notin $acceptedArchitectures) {
+          continue
+        }
+
+        $resolvedHome = (Resolve-Path $candidate).Path
+        $resolvedVersion = $version
+        $resolvedArchitecture = $architecture
+        break
+      }
+
+      if (-not $resolvedHome) {
+        $inspected = if ($candidateHomes.Count -eq 0) {
+          '<none>'
+        } else {
+          ($candidateHomes | Select-Object -Unique) -join ', '
+        }
+        throw "Could not find a pre-installed JDK $requiredMajor $requiredArchitecture. " +
+          "Inspected: $inspected"
+      }
+
+      Write-Host "Using JDK $resolvedVersion ($resolvedArchitecture): $resolvedHome"
+      Write-Host "##vso[task.setvariable variable=foundryJavaHome]$resolvedHome"
+      Write-Host "##vso[task.prependpath]$(Join-Path $resolvedHome 'bin')"

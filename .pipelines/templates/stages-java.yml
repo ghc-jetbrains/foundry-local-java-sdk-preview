@@ -211,6 +211,9 @@ stages:
             throw 'The shared SDK version is empty.'
           }
           Write-Host "##vso[task.setvariable variable=javaSdkVersion]$version"
+    - template: steps-resolve-java.yml
+      parameters:
+        jdkArchitecture: 'x64'
     - template: steps-bootstrap-maven.yml
     - task: Maven@4
       displayName: 'Maven clean verify'
@@ -221,9 +224,8 @@ stages:
         publishJUnitResults: true
         testResultsFiles: 'sdk_v2/java/target/surefire-reports/TEST-*.xml'
         testRunTitle: 'Java SDK package'
-        javaHomeOption: JDKVersion
-        jdkVersionOption: '1.17'
-        jdkArchitectureOption: 'x64'
+        javaHomeOption: Path
+        jdkDirectory: '$(foundryJavaHome)'
         mavenVersionOption: Path
         mavenDirectory: '$(foundryMavenHome)'
     - task: PowerShell@2

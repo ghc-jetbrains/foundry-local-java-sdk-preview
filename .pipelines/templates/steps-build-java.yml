@@ -65,6 +65,10 @@ steps:
       }
       Write-Host "##vso[task.setvariable variable=javaSdkVersion]$version"
 
+- template: steps-resolve-java.yml
+  parameters:
+    jdkArchitecture: '${{ parameters.jdkArchitecture }}'
+
 - template: steps-bootstrap-maven.yml
 
 - task: Maven@4
@@ -76,9 +80,8 @@ steps:
     publishJUnitResults: true
     testResultsFiles: 'sdk_v2/java/target/surefire-reports/TEST-*.xml'
     testRunTitle: 'Java SDK ${{ parameters.rid }}'
-    javaHomeOption: JDKVersion
-    jdkVersionOption: '1.17'
-    jdkArchitectureOption: '${{ parameters.jdkArchitecture }}'
+    javaHomeOption: Path
+    jdkDirectory: '$(foundryJavaHome)'
     mavenVersionOption: Path
     mavenDirectory: '$(foundryMavenHome)'
   env:
