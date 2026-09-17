@@ -37,4 +37,5 @@ steps:
         }
       }
 
+      Write-Host "##vso[task.setvariable variable=foundryMavenHome]$mavenHome"
       Write-Host "##vso[task.prependpath]$(Join-Path $mavenHome 'bin')"

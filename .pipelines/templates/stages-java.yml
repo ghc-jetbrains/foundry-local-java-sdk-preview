@@ -224,7 +224,8 @@ stages:
         javaHomeOption: JDKVersion
         jdkVersionOption: '1.17'
         jdkArchitectureOption: 'x64'
-        mavenVersionOption: Default
+        mavenVersionOption: Path
+        mavenDirectory: '$(foundryMavenHome)'
     - task: PowerShell@2
       displayName: 'Stage and validate Maven bundle'
       inputs:

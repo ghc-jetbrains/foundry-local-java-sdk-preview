@@ -79,7 +79,8 @@ steps:
     javaHomeOption: JDKVersion
     jdkVersionOption: '1.17'
     jdkArchitectureOption: '${{ parameters.jdkArchitecture }}'
-    mavenVersionOption: Default
+    mavenVersionOption: Path
+    mavenDirectory: '$(foundryMavenHome)'
   env:
     FOUNDRY_LOCAL_NATIVE_BIN_DIR: $(flNativeDir)
     FOUNDRY_TEST_DATA_DIR: '${{ parameters.testDataSharedDir }}'

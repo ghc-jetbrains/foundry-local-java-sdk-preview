@@ -21,12 +21,17 @@ public final class AudioSession implements AutoCloseable {
         model.owner.sessions.add(this);
     }
 
+    /**
+     * Decodes a PCM WAV file and submits its samples through the native streaming-audio path.
+     * This method does not use the native file/URI transcription path.
+     */
     public Transcription transcribeWav(Path wav, Consumer<SpeechEvent> listener) throws IOException {
         NativeApi.outsideCallback();
         WavAudio audio = WavAudio.read(wav);
         return start(audio.pcm(), audio.format(), listener);
     }
 
+    /** Starts a native streaming-audio transcription for PCM chunks supplied by the caller. */
     public Transcription streamPcm(PcmFormat format, Consumer<SpeechEvent> listener) {
         return start(null, Objects.requireNonNull(format), listener);
     }

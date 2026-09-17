@@ -114,6 +114,13 @@ public final class Model {
         }
     }
 
+    /**
+     * Creates a session for the preview streaming-ASR API.
+     *
+     * <p>An ASR task is required, but not every file-oriented ASR model necessarily supports
+     * the native streaming-audio processor used by this API. Unsupported models fail through
+     * the native status returned when transcription starts.
+     */
     public AudioSession createAudioSession() {
         NativeApi.outsideCallback();
         synchronized (owner) {

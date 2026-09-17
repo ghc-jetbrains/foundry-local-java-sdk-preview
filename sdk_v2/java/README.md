@@ -5,6 +5,9 @@ Foundry Local C API. The SDK uses JNA, keeps the native runtime and model
 weights outside the JAR, and exposes deterministic `AutoCloseable` lifetimes.
 
 This package is a preview and is not published to Maven Central yet.
+Its first phase intentionally covers streaming ASR rather than the full
+cross-language SDK surface. Generic Session/Request/Response/Item APIs, Chat,
+and native file/URI transcription are future extension points.
 
 ## Build
 
@@ -58,6 +61,11 @@ The older JBR 21.0.8 and 21.0.9 builds tested with Runtime 2.0.1 on Windows load
 an older C runtime first and cannot initialize ONNX Runtime. Use a compatible
 JBR/native-runtime combination instead of replacing IDE or system DLLs.
 
+The manager defaults native logging to Fatal and disables nonessential
+telemetry. These safety defaults are not configurable through the initial Java
+API. Runtime diagnostics such as `ORTGENAI_ORT_VERBOSE_LOGGING` can still
+control the underlying ONNX Runtime GenAI logging where supported.
+
 ## Streaming ASR
 
 The model is loaded once and reused across successive dictation requests.
@@ -101,6 +109,15 @@ try (var manager = new FoundryLocalManager(configuration)) {
 
 `Catalog.getModel` requires an exact `name:version` ID and throws
 `ModelNotFoundException` when that valid ID is unavailable.
+
+This preview uses Foundry Local's native streaming-audio processor. The ASR
+task in catalog metadata is necessary but does not promise that every
+file-oriented ASR model supports this path. Use a model whose native runtime
+supports streaming audio; the example and integration test use the Nemotron
+streaming model. `transcribeWav` decodes a supported PCM WAV file in Java and
+feeds its samples through the same streaming path. It does not invoke native
+file/URI transcription, and this preview does not promise file-input parity
+for models such as Whisper.
 
 For a real microphone stream, create one `Transcription`, call `writePcm` for
 each chunk, then call `finishInput` and `await`. `finishInput` drains queued
