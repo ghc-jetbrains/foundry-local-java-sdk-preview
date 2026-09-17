@@ -211,6 +211,7 @@ stages:
             throw 'The shared SDK version is empty.'
           }
           Write-Host "##vso[task.setvariable variable=javaSdkVersion]$version"
+    - template: steps-bootstrap-maven.yml
     - task: Maven@4
       displayName: 'Maven clean verify'
       inputs:
@@ -239,8 +240,14 @@ stages:
           New-Item -ItemType Directory -Force -Path $output | Out-Null
 
           $artifacts = @(
-            @{ Source = Join-Path $target "foundry-local-sdk-$version.jar"; Name = "foundry-local-sdk-$version.jar" },
-            @{ Source = Join-Path $target "foundry-local-sdk-$version-sources.jar"; Name = "foundry-local-sdk-$version-sources.jar" },
+            @{
+              Source = Join-Path $target "foundry-local-sdk-$version.jar"
+              Name = "foundry-local-sdk-$version.jar"
+            },
+            @{
+              Source = Join-Path $target "foundry-local-sdk-$version-sources.jar"
+              Name = "foundry-local-sdk-$version-sources.jar"
+            },
             @{ Source = Join-Path $javaRoot '.flattened-pom.xml'; Name = "foundry-local-sdk-$version.pom" }
           )
           foreach ($artifact in $artifacts) {

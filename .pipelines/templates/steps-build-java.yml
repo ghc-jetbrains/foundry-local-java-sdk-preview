@@ -65,6 +65,8 @@ steps:
       }
       Write-Host "##vso[task.setvariable variable=javaSdkVersion]$version"
 
+- template: steps-bootstrap-maven.yml
+
 - task: Maven@4
   displayName: 'Maven verify + native ASR (${{ parameters.rid }})'
   inputs:
