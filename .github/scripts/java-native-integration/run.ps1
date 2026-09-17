@@ -46,6 +46,7 @@ $modelCache = Join-Path $build 'model-cache'
 $appData = Join-Path $build 'app-data'
 $classes = Join-Path $build 'classes'
 $dependencyClasspathFile = Join-Path $build 'runtime-classpath.txt'
+$surefireReports = Join-Path $javaTarget 'surefire-reports'
 $runtimeEvidence = Join-Path $build 'runtime.json'
 $modelEvidence = Join-Path $build 'model.json'
 $resultPath = Join-Path $ResultDirectory "$Target.json"
@@ -153,6 +154,10 @@ try {
         "-Dfoundry.test.wav=$wav",
         "-Dfoundry.test.model=$modelId",
         'test'
+    )
+    Invoke-Checked python @(
+        (Join-Path $scriptRoot 'verify_surefire.py'),
+        '--reports', $surefireReports
     )
 
     $result.runtime = Get-Content -LiteralPath $runtimeEvidence -Raw | ConvertFrom-Json
