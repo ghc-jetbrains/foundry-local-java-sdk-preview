@@ -45,6 +45,7 @@ $downloads = Join-Path $build 'downloads'
 $modelCache = Join-Path $build 'model-cache'
 $appData = Join-Path $build 'app-data'
 $classes = Join-Path $build 'classes'
+$dependencyClasspathFile = Join-Path $build 'runtime-classpath.txt'
 $runtimeEvidence = Join-Path $build 'runtime.json'
 $modelEvidence = Join-Path $build 'model.json'
 $resultPath = Join-Path $ResultDirectory "$Target.json"
@@ -69,6 +70,7 @@ try {
         '--no-transfer-progress',
         '-f', $pom,
         '-Drevision=0.1.0-integration',
+        '-DskipTests',
         'clean', 'package'
     )
     $jars = @(Get-ChildItem -LiteralPath $javaTarget -Filter 'foundry-local-sdk-*.jar' |
@@ -88,12 +90,23 @@ try {
         '--output', $runtimeEvidence
     )
 
-    $jna = Join-Path $HOME '.m2/repository/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar'
-    if (-not (Test-Path -LiteralPath $jna -PathType Leaf)) {
-        throw "The Maven build did not restore the pinned JNA dependency."
+    Invoke-Checked mvn @(
+        '--batch-mode',
+        '--no-transfer-progress',
+        '-f', $pom,
+        '-DincludeScope=runtime',
+        "-Dmdep.outputFile=$dependencyClasspathFile",
+        'org.apache.maven.plugins:maven-dependency-plugin:3.8.1:build-classpath'
+    )
+    if (-not (Test-Path -LiteralPath $dependencyClasspathFile -PathType Leaf)) {
+        throw "Maven did not produce the SDK runtime classpath."
+    }
+    $dependencies = (Get-Content -LiteralPath $dependencyClasspathFile -Raw).Trim()
+    if (-not $dependencies) {
+        throw "The SDK runtime classpath is empty."
     }
     $separator = [IO.Path]::PathSeparator
-    $classpath = "$jar$separator$jna"
+    $classpath = "$jar$separator$dependencies"
     Invoke-Checked javac @(
         '-encoding', 'UTF-8',
         '-cp', $classpath,
