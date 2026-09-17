@@ -21,9 +21,7 @@ on:
         type: string
 
 permissions:
-  actions: read
   contents: read
-  issues: write
 
 concurrency:
   group: >-
@@ -175,6 +173,10 @@ jobs:
     needs:
       - integration
       - resolve-source
+    permissions:
+      actions: read
+      contents: read
+      issues: write
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
