@@ -91,7 +91,6 @@ public final class Model {
                 throw new IllegalStateException("Download progress callback failed", failure.get());
             }
             owner.api.check(status);
-            if (cancellation.isCancelled()) throw new FoundryLocalException(5, "Download cancelled");
         }
     }
 

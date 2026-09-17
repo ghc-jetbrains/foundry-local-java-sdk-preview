@@ -38,6 +38,11 @@ class NativeAsrTest {
                     () -> borrowed.download(cancelled, ignored -> fail("Must not invoke progress")));
             assertEquals(5, download.code());
             assertTrue(borrowed.isCached(), "Explicitly prepare the model first");
+            CancellationToken completedDownload = new CancellationToken();
+            borrowed.download(completedDownload, value -> {
+                if (value == 100.0) completedDownload.cancel();
+            });
+            assertTrue(completedDownload.isCancelled(), "Cached download must report completion");
             borrowed.load();
             System.err.println("native-test: model loaded");
             byte[] pcm = WavAudio.read(Path.of(wav)).pcm();

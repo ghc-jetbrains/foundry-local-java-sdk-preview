@@ -18,6 +18,16 @@ class NativeContractTest {
         assertTrue(error.getMessage().contains("missing-model:9"));
     }
 
+    @Test void modelLookupRejectsNonCanonicalIdsBeforeQueryingNativeCatalog() {
+        Catalog catalog = new Catalog(null, null);
+        for (String invalidId : new String[] {
+            "", "missing-version", ":1", ".name:1", "model:", "model:1:2", "model:-1",
+            "model:+1", "model:01", "model:2147483648", "model/path:1", "model name:1"
+        }) {
+            assertThrows(IllegalArgumentException.class, () -> catalog.getModel(invalidId), invalidId);
+        }
+    }
+
     @Test void matchesPackaged64BitStructSizes() {
         assertEquals(16, new NativeApi.CallbackData().size());
         assertEquals(72, new NativeApi.AudioData().size());

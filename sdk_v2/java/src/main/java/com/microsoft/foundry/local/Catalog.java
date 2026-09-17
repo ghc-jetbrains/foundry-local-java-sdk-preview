@@ -4,9 +4,12 @@ package com.microsoft.foundry.local;
 import com.sun.jna.Pointer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /** Borrowed from a manager. Queries may fetch public catalog metadata, never model weights. */
 public final class Catalog {
+    private static final Pattern EXACT_MODEL_ID =
+            Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*:(0|[1-9][0-9]*)");
     private final FoundryLocalManager owner;
     private final Pointer handle;
 
@@ -19,9 +22,7 @@ public final class Catalog {
      */
     public Model getModel(String exactId) {
         NativeApi.outsideCallback();
-        if (exactId == null || !exactId.matches("[A-Za-z0-9._-]+:[0-9]+")) {
-            throw new IllegalArgumentException("An exact model ID in name:version form is required");
-        }
+        validateExactId(exactId);
         synchronized (owner) {
             owner.checkOpen();
             Pointer modelHandle = owner.api.output(
@@ -31,6 +32,17 @@ public final class Catalog {
                 throw new IllegalStateException("Catalog returned a different model ID");
             }
             return model;
+        }
+    }
+
+    private static void validateExactId(String exactId) {
+        if (exactId == null || !EXACT_MODEL_ID.matcher(exactId).matches()) {
+            throw new IllegalArgumentException("A canonical model ID in name:version form is required");
+        }
+        try {
+            Integer.parseInt(exactId.substring(exactId.indexOf(':') + 1));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("The model ID version is out of range", e);
         }
     }
 
