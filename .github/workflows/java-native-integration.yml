@@ -26,8 +26,12 @@ permissions:
   issues: write
 
 concurrency:
-  group: java-native-integration
+  group: >-
+    ${{ github.event_name == 'pull_request' &&
+    format('java-native-integration-pr-{0}', github.event.pull_request.number) ||
+    'java-native-integration-heavy' }}
   cancel-in-progress: false
+  queue: max
 
 env:
   SOURCE_REF: ${{ inputs.source_ref || 'java/sdk-preview' }}
