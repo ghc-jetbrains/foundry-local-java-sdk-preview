@@ -48,6 +48,29 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(["linux-arm64"], rendered["failures"])
         self.assertIn("Expected source", rendered["issue"])
 
+    def test_missing_source_sha_preserves_original_error(self):
+        results = {target: self.result(target) for target in report.TARGETS}
+        results["win-arm64"].update(
+            status="failed", sourceSha=None, error="Java setup failed"
+        )
+        rendered = report.render(
+            results, "https://example.test/run", "java/sdk-preview", "a" * 40
+        )
+        self.assertTrue(rendered["failed"])
+        self.assertEqual(["win-arm64"], rendered["failures"])
+        self.assertIn("Java setup failed", rendered["issue"])
+        self.assertNotIn("target tested -", rendered["issue"])
+
+    def test_source_mismatch_does_not_hide_original_error(self):
+        results = {target: self.result(target) for target in report.TARGETS}
+        results["linux-x64"].update(
+            status="failed", sourceSha="c" * 40, error="Native test failed"
+        )
+        rendered = report.render(
+            results, "https://example.test/run", "java/sdk-preview", "a" * 40
+        )
+        self.assertIn("Native test failed; Expected source", rendered["issue"])
+
     def test_loader_rejects_duplicate_target_results(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

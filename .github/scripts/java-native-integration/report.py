@@ -51,11 +51,16 @@ def render(results, run_url, source_ref, expected_source_sha):
             model_manifest = model.get("manifestSha256", "-")
             duration = result.get("durationSeconds", "-")
             error = result.get("error") or "-"
-            if source_sha != expected_source_sha:
+            if source_sha == "-":
                 status = "FAILED"
-                error = (
+                if error == "-":
+                    error = "Result did not record a source SHA"
+            elif source_sha != expected_source_sha:
+                status = "FAILED"
+                mismatch = (
                     f"Expected source {expected_source_sha}, but target tested {source_sha}"
                 )
+                error = mismatch if error == "-" else f"{error}; {mismatch}"
         if status == "FAILED":
             failures.append(target)
         rows.append(
