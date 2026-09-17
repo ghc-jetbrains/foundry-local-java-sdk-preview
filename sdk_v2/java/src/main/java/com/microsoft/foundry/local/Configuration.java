@@ -4,7 +4,12 @@ package com.microsoft.foundry.local;
 import java.nio.file.Path;
 import java.util.Objects;
 
-/** Explicit locations only. Construction never loads native code or downloads assets. */
+/**
+ * Explicit locations only. Construction never loads native code or downloads assets.
+ *
+ * <p>The first runtime directory loaded is retained for the JVM lifetime. Recreated managers
+ * must use the same resolved runtime directory.
+ */
 public record Configuration(String appName, Path runtimeDirectory, Path modelCacheDirectory, Path appDataDirectory) {
     public Configuration {
         Objects.requireNonNull(appName, "appName");

@@ -7,7 +7,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Owns the native singleton and every session. Catalogs/models are borrowed views. */
+/**
+ * Owns the native singleton and every session. Catalogs/models are borrowed views.
+ *
+ * <p>Only one manager may be open at a time. After close, another manager can be created in
+ * the same JVM only with the same resolved runtime directory used by the first manager.
+ */
 public final class FoundryLocalManager implements AutoCloseable {
     private static boolean active;
     final NativeApi api;

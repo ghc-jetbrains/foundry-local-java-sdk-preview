@@ -17,7 +17,7 @@ Prerequisites:
 - Maven 3.9 or newer
 
 ```powershell
-mvn -f sdk_v2\java\pom.xml package
+mvn -f sdk_v2/java/pom.xml package
 ```
 
 The build produces:
@@ -28,7 +28,7 @@ The build produces:
 Override `revision` when producing an immutable release:
 
 ```powershell
-mvn -f sdk_v2\java\pom.xml -Drevision=0.1.0 package
+mvn -f sdk_v2/java/pom.xml -Drevision=0.1.0 package
 ```
 
 JNA remains a normal Maven dependency. The SDK JAR does not contain JNA native
@@ -50,6 +50,11 @@ The runtime directory must contain:
 When ONNX Runtime or ONNX Runtime GenAI libraries are present in the same
 directory, the SDK preloads them before Foundry Local. Otherwise, the platform
 loader must be able to resolve those dependencies.
+
+The first successfully resolved runtime directory remains loaded for the JVM
+lifetime. After closing a manager, another manager can be created only with
+the same resolved runtime directory. Start a new JVM to use a different native
+runtime directory.
 
 The platform-independent JAR can run wherever the matching Foundry Local native
 runtime is available. Current upstream native artifacts target Windows x64 and
@@ -131,7 +136,8 @@ seconds are queued.
 ## Ownership and threading
 
 - `FoundryLocalManager` owns catalogs, models, and sessions. Only one manager
-  may be open at a time, but a manager can be closed and recreated later.
+  may be open at a time. After close, a manager can be recreated in the same
+  JVM only with the same resolved runtime directory.
 - A loaded `Model` can create multiple successive `AudioSession` instances
   without reloading the model.
 - Closing a manager closes outstanding sessions and transcriptions before
@@ -144,13 +150,13 @@ seconds are queued.
 ## Tests
 
 ```powershell
-mvn -f sdk_v2\java\pom.xml test
+mvn -f sdk_v2/java/pom.xml test
 ```
 
 The native ASR integration test is opt-in and never downloads a model:
 
 ```powershell
-mvn -f sdk_v2\java\pom.xml test `
+mvn -f sdk_v2/java/pom.xml test `
   -Dtest=NativeAsrTest `
   -Dfoundry.test.runtime=<absolute-native-runtime-dir> `
   -Dfoundry.test.cache=<absolute-model-cache> `
@@ -162,4 +168,5 @@ CI may provide the equivalent `FOUNDRY_LOCAL_NATIVE_BIN_DIR`,
 
 The test reuses one loaded model for repeated PCM requests, covers final
 results, cancellation, callback failures, deterministic cleanup, manager
-recreation, and verifies that no callback or worker survives close.
+recreation with the same runtime directory, and verifies that no callback or
+worker survives close.
