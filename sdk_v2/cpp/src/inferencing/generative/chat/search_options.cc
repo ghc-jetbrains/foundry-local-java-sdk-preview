@@ -72,6 +72,10 @@ int GetModelMaxContextLength(const GenAIConfig& config) {
 
 std::optional<TurnGuidanceOptions> ResolveTurnGuidanceOptions(const ToolCallContext& tool_ctx,
                                                               bool prompt_opens_reasoning) {
+  if (tool_ctx.guidance_disabled) {
+    return std::nullopt;
+  }
+
   std::string guidance_type;
   std::string guidance_data;
   const bool user_specified_guidance =
@@ -120,7 +124,10 @@ SamplingPlan ResolveSamplingPlan(const SearchOptions& options) {
 
   SamplingPlan plan;
   plan.do_sample = options.do_sample;
-  if (!plan.do_sample.has_value() && options.temperature.has_value()) {
+  // OpenAI-compatible clients commonly send temperature=1 as a neutral default. Keep do_sample unset in that case so
+  // the model's sampling default remains authoritative.
+  if (!plan.do_sample.has_value() && options.temperature.has_value() &&
+      *options.temperature != 1.0f) {
     plan.do_sample = *options.temperature > 0.0f;
   }
   plan.temperature = options.temperature;

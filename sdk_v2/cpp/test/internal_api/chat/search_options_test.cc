@@ -200,6 +200,28 @@ TEST(SamplingPlanTest, PositiveTemperatureEnablesSampling) {
   EXPECT_TRUE(*plan.do_sample);
 }
 
+TEST(SamplingPlanTest, NeutralTemperaturePreservesModelSamplingDefault) {
+  SearchOptions options;
+  options.temperature = 1.0f;
+
+  const auto plan = ResolveSamplingPlan(options);
+  EXPECT_FALSE(plan.greedy);
+  EXPECT_FALSE(plan.do_sample.has_value());
+  ASSERT_TRUE(plan.temperature.has_value());
+  EXPECT_FLOAT_EQ(*plan.temperature, 1.0f);
+}
+
+TEST(SamplingPlanTest, ExplicitSamplingWithNeutralTemperatureRemainsExplicit) {
+  SearchOptions options;
+  options.do_sample = true;
+  options.temperature = 1.0f;
+
+  const auto plan = ResolveSamplingPlan(options);
+  EXPECT_FALSE(plan.greedy);
+  ASSERT_TRUE(plan.do_sample.has_value());
+  EXPECT_TRUE(*plan.do_sample);
+}
+
 TEST(SamplingPlanTest, OutOfRangeScalarsAreRejected) {
   for (float top_p : {-0.1f, 1.1f, std::numeric_limits<float>::infinity()}) {
     SearchOptions options;
@@ -289,6 +311,37 @@ TEST(EngineTurnOptionsPlanTest, UserGuidanceAppliesWithoutToolOnlyMode) {
   EXPECT_EQ(plan.guidance->type, "json_schema");
   EXPECT_EQ(plan.guidance->data, R"({"type":"object","required":["answer"]})");
   EXPECT_TRUE(plan.guidance->user_specified);
+}
+
+TEST(EngineTurnOptionsPlanTest, ForcedRawToolWithoutCompatibleGrammarDisablesStructuredGuidance) {
+  ToolCallContext tool_ctx;
+  tool_ctx.text_output = false;
+  tool_ctx.tool_output = true;
+  tool_ctx.tools_json =
+      R"([{"type":"function","function":{"name":"edit","parameters":{"type":"object"}}}])";
+  tool_ctx.guidance_type = "json_schema";
+  tool_ctx.guidance_data = R"({"type":"object"})";
+  tool_ctx.guidance_disabled = true;
+
+  const auto plan =
+      BuildEngineTurnOptionsPlan(SearchOptions{}, tool_ctx, ChatBackendKind::kEngine, false);
+
+  EXPECT_FALSE(plan.guidance.has_value());
+}
+
+TEST(EngineTurnOptionsPlanTest, ForcedRawToolUsesItsCompatibleLarkGrammar) {
+  ToolCallContext tool_ctx;
+  tool_ctx.text_output = false;
+  tool_ctx.tool_output = true;
+  tool_ctx.guidance_type = "lark_grammar";
+  tool_ctx.guidance_data = "start: \"BEGIN\" /(.|\\n)+/ \"END\"";
+
+  const auto plan =
+      BuildEngineTurnOptionsPlan(SearchOptions{}, tool_ctx, ChatBackendKind::kEngine, false);
+
+  ASSERT_TRUE(plan.guidance.has_value());
+  EXPECT_EQ(plan.guidance->type, "lark_grammar");
+  EXPECT_EQ(plan.guidance->data, tool_ctx.guidance_data);
 }
 
 TEST(EngineTurnOptionsPlanTest, PromptOpenedReasoningOmitsTheGrammarOpener) {
