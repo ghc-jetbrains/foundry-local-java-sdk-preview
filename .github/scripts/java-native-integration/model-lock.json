@@ -1,36 +1,121 @@
 {
   "schemaVersion": 1,
-  "id": "nemotron-3.5-asr-streaming-0.6b-generic-cpu:3",
-  "sourceUri": "azureml://registries/azureml/models/nemotron-3.5-asr-streaming-0.6b-generic-cpu/versions/3",
+  "id": "nemotron-speech-streaming-en-0.6b-generic-cpu:3",
+  "sourceUri": "azureml://registries/azureml/models/nemotron-speech-streaming-en-0.6b-generic-cpu/versions/3",
   "commonFiles": [
-    {"name":"LICENSE","bytes":1082,"sha256":"a6f5b307e3ff1acc20fa2fca4ff20fa19c2e2e605fa1f2993e434683803eb61f"},
-    {"name":"NOTICES","bytes":370,"sha256":"d0c99253ea5ea9f98a8b8259d01de047811287ae53fdca59536eaf11a76a56ea"},
-    {"name":"audio_processor_config.json","bytes":413,"sha256":"ab28d41eb87ce3922006edeb9c3fad4d5ce451f9a56a12d84f470f02a5ec157b"},
-    {"name":"decoder.onnx","bytes":4696,"sha256":"6a9f608dcbab71ebd81ffa4c198e82a5b6bb10f1c1830a94c752c5f543454df3"},
-    {"name":"decoder.onnx.data","bytes":59785216,"sha256":"e5fd55cbeeb268f9d383e2ee72735b9fbbb13aea4bc7cd38cb73b8e16f1366c7"},
-    {"name":"encoder.onnx","bytes":2677548,"sha256":"0b05217594ec0bda442e43a90a298ac2471a3bdcea9b169de34214e61a730e17"},
-    {"name":"encoder.onnx.data","bytes":690089984,"sha256":"2f27295855aeb99ab1f8cd2254418d9ad7a087ea8dbe85f5596b4d887ea7d630"},
-    {"name":"genai_config.json","bytes":2142,"sha256":"d114900e0bc8ecf3474d8dd566a1b75c3f1e8771eb5f490fce97055fa2e080d8"},
-    {"name":"joint.onnx","bytes":2136,"sha256":"e2c7d2fa40a243bf82eaca36c15698c52129de9361d2875d7f223f67fcd9482d"},
-    {"name":"joint.onnx.data","bytes":37830656,"sha256":"2e0fb1c060f3777a1a76e78d5589dd54f01505a06dffbd2588e315508b402c12"},
-    {"name":"model_config.json","bytes":365,"sha256":"f41f943eeb1310a89dd58cf3e11e654a8ae1a788fceeb6cd1eacce3a6d081965"},
-    {"name":"silero_vad.onnx","bytes":2243022,"sha256":"a4a068cd6cf1ea8355b84327595838ca748ec29a25bc91fc82e6c299ccdc5808"},
-    {"name":"tokenizer.json","bytes":642525,"sha256":"24e1e8335c8396884a86f06880271376ae46a29381cfc35c82c6295d407acec7"},
-    {"name":"tokenizer_config.json","bytes":183,"sha256":"ea4b35353f468fea11f436f837d9621a29b4ba9d1c73c1ed0aa5743f5a53919e"},
-    {"name":"vocab.txt","bytes":64024,"sha256":"ca88922ac5a92c911b79985b69634d7a4c2ef604d61b71bbe2982210dd77cd43"}
+    {
+      "name": "audio_processor_config.json",
+      "bytes": 413,
+      "sha256": "ab28d41eb87ce3922006edeb9c3fad4d5ce451f9a56a12d84f470f02a5ec157b"
+    },
+    {
+      "name": "decoder.onnx",
+      "bytes": 4414,
+      "sha256": "3bbf05aa83ef9942a24d15fb7bc395b55fa369b2aea2883ca71f457b77df7a9b"
+    },
+    {
+      "name": "decoder.onnx.data",
+      "bytes": 28879360,
+      "sha256": "cdeaea6b84d05747168ebc6fae03a58a7b66ebd65e3959f70c8df5bfd18276c0"
+    },
+    {
+      "name": "encoder.onnx",
+      "bytes": 2738954,
+      "sha256": "89b7a08b5b1837bc1c8b3019ae0bc361cdce7250453b2daca6591473c8dd52b4"
+    },
+    {
+      "name": "encoder.onnx.data",
+      "bytes": 687187753,
+      "sha256": "1a7060f5bf919f3f76a48a0269b5134e2ce194e625206f238c4d4ed453093d0b"
+    },
+    {
+      "name": "genai_config.json",
+      "bytes": 2108,
+      "sha256": "05a7eb7cb0d9e1c0858c0624bf248beb3d1dfa1cef6d9a6effc01b479724423c"
+    },
+    {
+      "name": "joint.onnx",
+      "bytes": 1917,
+      "sha256": "4d78d3a0affc978c698e4bb04440e80f35f878e7ed957390c8c148315e31072d"
+    },
+    {
+      "name": "joint.onnx.data",
+      "bytes": 6893060,
+      "sha256": "a9c4504f7cce1935de59de7a8dfff87e7a710c37871286de6a978ff424f1f88f"
+    },
+    {
+      "name": "LICENSE",
+      "bytes": 1082,
+      "sha256": "a6f5b307e3ff1acc20fa2fca4ff20fa19c2e2e605fa1f2993e434683803eb61f"
+    },
+    {
+      "name": "model.onnx",
+      "bytes": 2738954,
+      "sha256": "89b7a08b5b1837bc1c8b3019ae0bc361cdce7250453b2daca6591473c8dd52b4"
+    },
+    {
+      "name": "model_config.json",
+      "bytes": 422,
+      "sha256": "266bb663f772cac527a4273b8be9e75790f78f3bafb0c5066c582e16d761b8c0"
+    },
+    {
+      "name": "NOTICES",
+      "bytes": 372,
+      "sha256": "5ebcc4025ac107ec76fdfb9e17cd03ab29be75cb4977b3085a08446fed706b13"
+    },
+    {
+      "name": "silero_vad.onnx",
+      "bytes": 2243022,
+      "sha256": "a4a068cd6cf1ea8355b84327595838ca748ec29a25bc91fc82e6c299ccdc5808"
+    },
+    {
+      "name": "tokenizer.json",
+      "bytes": 49581,
+      "sha256": "d8b96152ceaaa6f4df976cecc6f954b354842d09ac2698c62507283a22167d4c"
+    },
+    {
+      "name": "tokenizer_config.json",
+      "bytes": 183,
+      "sha256": "ea4b35353f468fea11f436f837d9621a29b4ba9d1c73c1ed0aa5743f5a53919e"
+    },
+    {
+      "name": "vocab.txt",
+      "bytes": 4939,
+      "sha256": "fbbb3ac65aebb9f0be6020f46f3e4d0ef326b85d852d7ab92db263798b27be34"
+    }
   ],
   "targetMarkers": {
-    "win-x64": {"name":"inference_model.json","bytes":90,"sha256":"881e9c5b34349dabe826cf88857835d15623c1a92a311d002812c399fe1128ef"},
-    "win-arm64": {"name":"inference_model.json","bytes":90,"sha256":"881e9c5b34349dabe826cf88857835d15623c1a92a311d002812c399fe1128ef"},
-    "linux-x64": {"name":"inference_model.json","bytes":87,"sha256":"9bb2dbe6766fb9a5e3e1c8407a88141a480363d0aca7d4df4f88aa3e0399adeb"},
-    "linux-arm64": {"name":"inference_model.json","bytes":87,"sha256":"9bb2dbe6766fb9a5e3e1c8407a88141a480363d0aca7d4df4f88aa3e0399adeb"},
-    "osx-arm64": {"name":"inference_model.json","bytes":87,"sha256":"9bb2dbe6766fb9a5e3e1c8407a88141a480363d0aca7d4df4f88aa3e0399adeb"}
+    "win-x64": {
+      "name": "inference_model.json",
+      "bytes": 92,
+      "sha256": "6045f07665a44f492445e46f083927abb22758d6ede52bf7899bd6edad386ef9"
+    },
+    "win-arm64": {
+      "name": "inference_model.json",
+      "bytes": 92,
+      "sha256": "6045f07665a44f492445e46f083927abb22758d6ede52bf7899bd6edad386ef9"
+    },
+    "linux-x64": {
+      "name": "inference_model.json",
+      "bytes": 89,
+      "sha256": "52df6e5cef8a49d8bba60c3e651fd292a8f5e359cb8e6af203253202094883d7"
+    },
+    "linux-arm64": {
+      "name": "inference_model.json",
+      "bytes": 89,
+      "sha256": "52df6e5cef8a49d8bba60c3e651fd292a8f5e359cb8e6af203253202094883d7"
+    },
+    "osx-arm64": {
+      "name": "inference_model.json",
+      "bytes": 89,
+      "sha256": "52df6e5cef8a49d8bba60c3e651fd292a8f5e359cb8e6af203253202094883d7"
+    }
   },
   "manifestSha256": {
-    "win-x64": "483ce0b37c44b952a369de4257161df7ca42c8621109f20222ad1a9126f55001",
-    "win-arm64": "483ce0b37c44b952a369de4257161df7ca42c8621109f20222ad1a9126f55001",
-    "linux-x64": "8d02c1ffd0c9532751ef736ea5941c0733b2219c15ec68c038063dada7e29b8a",
-    "linux-arm64": "8d02c1ffd0c9532751ef736ea5941c0733b2219c15ec68c038063dada7e29b8a",
-    "osx-arm64": "8d02c1ffd0c9532751ef736ea5941c0733b2219c15ec68c038063dada7e29b8a"
+    "win-x64": "e6d3b44a14b0979583d4a62a9f7176046e3304c862b71b2ef32f7638b37b7ce7",
+    "win-arm64": "e6d3b44a14b0979583d4a62a9f7176046e3304c862b71b2ef32f7638b37b7ce7",
+    "linux-x64": "2cd8cff270bd73644933ff02a44e62dee5e4d8d53325b2874e3e2fa643e97dce",
+    "linux-arm64": "2cd8cff270bd73644933ff02a44e62dee5e4d8d53325b2874e3e2fa643e97dce",
+    "osx-arm64": "2cd8cff270bd73644933ff02a44e62dee5e4d8d53325b2874e3e2fa643e97dce"
   }
 }

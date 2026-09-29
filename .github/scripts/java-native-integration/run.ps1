@@ -31,6 +31,7 @@ $result = [ordered]@{
     sdkJarSha256 = $null
     runtime = $null
     model = $null
+    streaming = $null
     test = 'not-run'
     durationSeconds = 0
     error = $null
@@ -112,7 +113,8 @@ try {
         '-encoding', 'UTF-8',
         '-cp', $classpath,
         '-d', $classes,
-        (Join-Path $scriptRoot 'ModelPreparer.java')
+        (Join-Path $scriptRoot 'ModelPreparer.java'),
+        (Join-Path $scriptRoot 'EnglishStreamingProbe.java')
     )
 
     $prepareClasspath = "$classes$separator$classpath"
@@ -160,6 +162,12 @@ try {
         '--reports', $surefireReports
     )
 
+    $streamingEvidence = Join-Path $build 'streaming.json'
+    Invoke-Checked java @(
+        '-cp', $prepareClasspath, 'EnglishStreamingProbe',
+        $runtime, $modelCache, $appData, $modelId, $wav, $streamingEvidence
+    )
+    $result.streaming = Get-Content -LiteralPath $streamingEvidence -Raw | ConvertFrom-Json
     $result.runtime = Get-Content -LiteralPath $runtimeEvidence -Raw | ConvertFrom-Json
     $result.model = Get-Content -LiteralPath $modelEvidence -Raw | ConvertFrom-Json
     $result.test = 'NativeAsrTest'

@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation. Licensed under the MIT License.
 name: Java native Dictation integration
-run-name: Java native integration (${{ inputs.source_ref || 'java/sdk-preview' }})
+run-name: English model qualification (${{ inputs.source_ref || '1c7c2a6bc7da7e57ae6801525006393df34a42f7' }})
 
 on:
   pull_request:
@@ -17,7 +17,7 @@ on:
       source_ref:
         description: Java SDK commit, tag, or branch to qualify
         required: true
-        default: java/sdk-preview
+        default: 1c7c2a6bc7da7e57ae6801525006393df34a42f7
         type: string
 
 permissions:
@@ -32,7 +32,7 @@ concurrency:
   queue: max
 
 env:
-  SOURCE_REF: ${{ inputs.source_ref || 'java/sdk-preview' }}
+  SOURCE_REF: ${{ inputs.source_ref || '1c7c2a6bc7da7e57ae6801525006393df34a42f7' }}
 
 jobs:
   validate:
@@ -72,7 +72,7 @@ jobs:
       - validate
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 5
       matrix:
         include:
           - id: win-x64
