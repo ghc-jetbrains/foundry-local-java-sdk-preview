@@ -1,0 +1,95 @@
+# Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+name: Java SDK preview
+
+on:
+  push:
+    branches:
+      - java/sdk-preview-3
+    tags:
+      - java-sdk-v0.1.0-preview.3-*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Java 17 SDK
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: sdk_v2/java/pom.xml
+      - name: Resolve immutable preview version
+        id: version
+        shell: pwsh
+        run: |
+          $shortSha = $env:GITHUB_SHA.Substring(0, 12)
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $expectedTag = "java-sdk-v0.1.0-preview.3-$shortSha"
+            if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+              throw "Expected tag $expectedTag for source commit $env:GITHUB_SHA."
+            }
+            $version = $env:GITHUB_REF_NAME.Substring('java-sdk-v'.Length)
+          } else {
+            $version = "0.1.0-preview.3-dev-$shortSha"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Build and verify SDK
+        shell: pwsh
+        run: |
+          mvn --batch-mode --no-transfer-progress -f sdk_v2/java/pom.xml `
+            "-Drevision=${{ steps.version.outputs.version }}" clean verify
+          if ($LASTEXITCODE -ne 0) { throw "Maven exited with $LASTEXITCODE." }
+      - name: Verify artifact and write provenance
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $jar = "sdk_v2/java/target/foundry-local-sdk-$version.jar"
+          $entries = @(& jar tf $jar)
+          if ($LASTEXITCODE -ne 0) { throw "Unable to inspect $jar." }
+          if ($entries | Where-Object { $_ -like 'com/sun/jna/*' -or $_ -like 'com/google/gson/*' }) {
+            throw 'The SDK must not embed its dependencies.'
+          }
+          $file = Get-Item -LiteralPath $jar
+          $hash = (Get-FileHash -LiteralPath $jar -Algorithm SHA256).Hash.ToLowerInvariant()
+          New-Item -ItemType Directory -Path release | Out-Null
+          Copy-Item -LiteralPath $jar -Destination release
+          $jdkVersion = (& java -version 2>&1 | Select-Object -First 1).ToString()
+          $provenance = [ordered]@{
+            schemaVersion = 1
+            repository = "https://github.com/$env:GITHUB_REPOSITORY"
+            branch = 'java/sdk-preview-3'
+            tag = "java-sdk-v$version"
+            sourceCommit = $env:GITHUB_SHA
+            upstreamCommit = '92d002cee058f1152837ba7002420a6dd96b956e'
+            workflowRunId = [long]$env:GITHUB_RUN_ID
+            workflowRunUrl = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            jdk = $jdkVersion
+            buildCommand = "mvn -f sdk_v2/java/pom.xml -Drevision=$version clean verify"
+            artifactFilename = $file.Name
+            artifactBytes = $file.Length
+            artifactSha256 = $hash
+            classFileMajor = 61
+            nativeApiVersion = 2
+          }
+          [IO.File]::WriteAllText("$pwd/release/FOUNDRY_SDK_PROVENANCE.json",
+            ($provenance | ConvertTo-Json) + "`n", [Text.UTF8Encoding]::new($false))
+          [IO.File]::WriteAllText("$pwd/release/SHA256SUMS.txt",
+            "$hash  $($file.Name)`n", [Text.UTF8Encoding]::new($false))
+      - name: Upload preview
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: foundry-local-sdk-${{ steps.version.outputs.version }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 90
