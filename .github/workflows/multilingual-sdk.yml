@@ -1,0 +1,85 @@
+name: Multilingual Java SDK qualification
+on:
+  push:
+    branches: [integration-test/multilingual-sdk-api2]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win-x64
+            runner: windows-2025
+            arch: x64
+          - target: win-arm64
+            runner: windows-11-arm
+            arch: arm64
+          - target: linux-x64
+            runner: ubuntu-24.04
+            arch: x64
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+          - target: osx-arm64
+            runner: macos-15
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      ORT_TELEMETRY_DISABLED: "1"
+      FOUNDRY_TEST_MODEL: nemotron-3.5-asr-streaming-0.6b-generic-cpu:3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: "21"
+          architecture: ${{ matrix.arch }}
+          cache: maven
+          cache-dependency-path: sdk_v2/java/pom.xml
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+          architecture: ${{ matrix.arch }}
+      - name: Build unmodified SDK and prepare runtime
+        shell: pwsh
+        run: |
+          mvn -B -ntp -f sdk_v2/java/pom.xml "-Drevision=0.1.0-preview.3-71d2afd191ef" "-Dtest=AudioValidationTest,NativeContractTest,TranscriptionStateTest" verify dependency:copy-dependencies "-DincludeScope=runtime"
+          if ($LASTEXITCODE -ne 0) { throw 'SDK verification failed' }
+          python .github/scripts/multilingual-sdk/prepare_runtime.py --target '${{ matrix.target }}' --output runtime
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime preparation failed' }
+      - name: Download exact model with the SDK
+        shell: pwsh
+        run: |
+          $classpath = @("sdk_v2/java/target/foundry-local-sdk-0.1.0-preview.3-71d2afd191ef.jar",
+            "sdk_v2/java/target/dependency/jna-5.17.0.jar") -join [IO.Path]::PathSeparator
+          java --enable-native-access=ALL-UNNAMED -cp $classpath .github/scripts/multilingual-sdk/PrepareModel.java `
+            "$pwd/runtime" "$pwd/models" "$pwd/app-data" "$env:FOUNDRY_TEST_MODEL" "$pwd/model-path.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'Model preparation failed' }
+      - name: Exercise English regression, fixed and automatic French, cancellation and shutdown
+        shell: pwsh
+        run: |
+          mvn -B -ntp -f sdk_v2/java/pom.xml "-Drevision=0.1.0-preview.3-71d2afd191ef" `
+            "-Dtest=NativeAsrTest,NativeAudioLanguageTest" `
+            "-Dfoundry.test.native.required=true" "-Dfoundry.test.language.required=true" `
+            "-Dfoundry.test.runtime=$pwd/runtime" "-Dfoundry.test.cache=$pwd/models" `
+            "-Dfoundry.test.wav=$pwd/sdk_v2/testdata/Recording.wav" `
+            "-Dfoundry.test.model=$env:FOUNDRY_TEST_MODEL" test
+          if ($LASTEXITCODE -ne 0) { throw 'Native ASR qualification failed' }
+          python .github/scripts/multilingual-sdk/inventory.py --target '${{ matrix.target }}'
+          if ($LASTEXITCODE -ne 0) { throw 'Model inventory qualification failed' }
+      - name: Upload qualification results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: multilingual-${{ matrix.target }}
+          path: |
+            qualification/*.json
+            sdk_v2/java/target/surefire-reports/*
+          if-no-files-found: warn
+          retention-days: 30
