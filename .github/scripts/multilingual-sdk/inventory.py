@@ -30,6 +30,7 @@ for path in sorted(model.rglob("*")):
         entries.append(dict(name=relative, bytes=path.stat().st_size, sha256=digest.hexdigest()))
 if not entries:
     raise ValueError("Empty model inventory")
+entries.sort(key=lambda entry: entry["name"])
 canonical = "".join(f"{e['name']}\t{e['bytes']}\t{e['sha256']}\n" for e in entries)
 result = dict(
     target=args.target,
